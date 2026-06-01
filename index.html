@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AURA VAULT - Decentralized Web3 Gateway</title>
+    <!-- Global Web3 Infrastructure Library -->
     <script src="https://cloudflare.com"></script>
     <style>
         body { background-color: #0d0415; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center; padding: 20px; margin: 0; }
@@ -52,7 +53,7 @@
                     provider = new ethers.BrowserProvider(window.ethereum);
                     const accounts = await provider.send("eth_requestAccounts", []);
                     signer = await provider.getSigner();
-                    userAddress = accounts[0];
+                    userAddress = accounts;
                     
                     document.getElementById("walletAddress").innerText = `Connected: ${userAddress.substring(0,6)}...${userAddress.substring(userAddress.length-4)}`;
                     document.getElementById("connectBtn").innerText = "Wallet Connected";
@@ -122,5 +123,3 @@
     </script>
 </body>
 </html>
-
-
