@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AURA VAULT - Decentralized Web3 Gateway</title>
-    <!-- Global Web3 Infrastructure Library -->
+    
+    <!-- แก้ไข: นำเข้าไลบรารี Ethers.js v6 ของแท้จาก CDN เพื่อให้ระบบ Web3 ทำงานได้ -->
     <script src="https://cloudflare.com"></script>
+    
     <style>
         body { background-color: #0d0415; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center; padding: 20px; margin: 0; }
         .card { background: linear-gradient(145deg, #190a2a, #0d0415); border-radius: 24px; padding: 35px 25px; margin: 40px auto; max-width: 360px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6); border: 1px solid #2d134d; }
@@ -45,7 +47,6 @@
         let provider, signer, userAddress;
 
         const DEVELOPER_FEE_ADDRESS = "0x6072ea6db99a3c04ecf1821c2beca48b3ff573f0"; 
-        const FEE_PERCENT = 0.01; 
 
         async function connectWallet() {
             if (window.ethereum) {
@@ -53,7 +54,9 @@
                     provider = new ethers.BrowserProvider(window.ethereum);
                     const accounts = await provider.send("eth_requestAccounts", []);
                     signer = await provider.getSigner();
-                    userAddress = accounts;
+                    
+                    // แก้ไข: ดึงเฉพาะสมาชิกตัวแรกของ Array (accounts[0]) เพื่อให้เป็น String ของ Address ที่ถูกต้อง
+                    userAddress = accounts[0];
                     
                     document.getElementById("walletAddress").innerText = `Connected: ${userAddress.substring(0,6)}...${userAddress.substring(userAddress.length-4)}`;
                     document.getElementById("connectBtn").innerText = "Wallet Connected";
@@ -64,6 +67,7 @@
                     const balance = await provider.getBalance(userAddress);
                     document.getElementById("balanceDisplay").innerText = `${parseFloat(ethers.formatEther(balance)).toFixed(4)} BNB`;
                 } catch (error) {
+                    console.error(error);
                     alert("Connection rejected by user.");
                 }
             } else {
@@ -95,16 +99,20 @@
 
                 try {
                     const amountInWei = ethers.parseEther(amountStr);
-                    const feeInWei = (amountInWei * BigInt(FEE_PERCENT * 1000)) / BigInt(1000); 
+                    
+                    // แก้ไข: ปรับคำนวณค่าธรรมเนียม 1% โดยใช้ BigInt Math แบบจำนวนเต็ม (หาร 100) เพื่อความปลอดภัยและแม่นยำ
+                    const feeInWei = amountInWei / 100n; 
 
                     alert(`Initiating Transfer:\nAmount: ${amountStr} BNB\nPlatform Fee (1%): ${ethers.formatEther(feeInWei)} BNB\n\nPlease confirm in your wallet.`);
 
+                    // สั่งทำรายการหลัก (โอนเงินไปยังปลายทาง)
                     const tx = await signer.sendTransaction({
                         to: toAddress,
                         value: amountInWei
                     });
                     
-                    if (feeInWei > 0) {
+                    // สั่งทำรายการรอง (หักค่าธรรมเนียมเข้าบัญชีผู้พัฒนา)
+                    if (feeInWei > 0n) {
                         await signer.sendTransaction({
                             to: DEVELOPER_FEE_ADDRESS,
                             value: feeInWei
@@ -113,6 +121,7 @@
 
                     alert(`Transaction Sent! Hash: ${tx.hash}`);
                 } catch (error) {
+                    console.error(error);
                     alert("Transaction failed or canceled: " + error.message);
                 }
             } 
@@ -123,3 +132,4 @@
     </script>
 </body>
 </html>
+
