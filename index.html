@@ -1,87 +1,225 @@
-// ประกาศที่อยู่ของสัญญาที่คุณพึ่งทำการ Deploy
-const contractAddress = "0x96B4b2A0bfcC444E589f556522c85520e8A15943";
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web3 dApp Transfer</title>
+    
+    <!-- 1. ดึงไลบรารี Ethers.js v6 มาใช้งาน -->
+    <script src="https://unpkg.com /ethers@6/dist/ethers.umd.min.js"></script>
+    
+    <!-- 2. ปรับแต่งหน้าตาเว็บให้ดูสะอาดและใช้งานง่ายบนมือถือ -->
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 0;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: none;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
 
-// ค่า ABI ของฟังก์ชัน (แก้ไขโครงสร้าง Syntax ที่ซ้อนกันให้ถูกต้องแล้ว)
-const contractABI = [
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_feeAddress",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address payable",
-        "name": "_to",
-        "type": "address"
-      }
-    ],
-    "name": "transferWithFee",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "feeAddress",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
-];
+    <div class="container">
+        <h2>Web3 dApp Transfer</h2>
+        
+        <!-- ฟอร์มรับค่าสำหรับทำธุรกรรม -->
+        <div class="form-group">
+            <label for="recipient">ที่อยู่กระเป๋าผู้รับ (Recipient Address)</label>
+            <input type="text" id="recipient" placeholder="0x..." value="">
+        </div>
+        
+        <div class="form-group">
+            <label for="amount">จำนวนเหรียญ (Amount in BNB)</label>
+            <input type="number" id="amount" step="0.0001" placeholder="0.05" value="">
+        </div>
+        
+        <button id="btnTransfer" onclick="startTransferProcess()">ทำรายการโอนเงิน</button>
+        
+        <!-- ส่วนแสดงสถานะการทำงานบนหน้าจอ -->
+        <div id="statusBox" class="status"></div>
+    </div>
 
-// ฟังก์ชันสำหรับเรียกใช้งานสัญญาอัจฉริยะเมื่อผู้ใช้กดปุ่มทำรายการ
-async function executeContractTransfer(recipientAddress, amountInBNB) {
-    if (typeof window.ethereum !== 'undefined') {
-        try {
-            // สร้างการเชื่อมต่อผ่าน Web3 Provider (Ethers v6)
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const signer = await provider.getSigner();
-            
-            // เรียกใช้งานอินสแตนซ์ของสัญญา
-            const pointContract = new ethers.Contract(contractAddress, contractABI, signer);
-            
-            // แปลงค่าเหรียญเป็นหน่วย Wei (แปลงเป็น String ก่อนเข้าฟังก์ชันเพื่อความปลอดภัย)
-            const valueToSend = ethers.parseEther(amountInBNB.toString());
-            
-            // สั่งงานฟังก์ชันบนบล็อกเชนโดยตรง
-            const tx = await pointContract.transferWithFee(recipientAddress, {
-                value: valueToSend
-            });
-            
-            console.log("Transaction Sent. Hash:", tx.hash);
-            alert(`ธุรกรรมถูกส่งแล้ว! หมายเลขแฮช: ${tx.hash}\nกำลังรอการยืนยันจากบล็อกเชน...`);
+    <!-- 3. ส่วนระบบควบคุมการทำงาน JavaScript (Web3 Logic) -->
+    <script>
+        // ที่อยู่ของ Smart Contract บนบล็อกเชน
+        const contractAddress = "0x96B4b2A0bfcC444E589f556522c85520e8A15943";
 
-            // [แนะนำเพิ่มเติม] รอให้บล็อกเชนประมวลผลธุรกรรมสำเร็จจริงบน On-chain
-            const receipt = await tx.wait();
-            console.log("Transaction Confirmed:", receipt);
-            alert("ธุรกรรมได้รับการยืนยันบนบล็อกเชนสำเร็จแล้ว!");
+        // ค่า Application Binary Interface (ABI) ของสัญญาที่แก้ไขถูกต้องแล้ว
+        const contractABI = [
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_feeAddress",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address payable",
+                        "name": "_to",
+                        "type": "address"
+                    }
+                ],
+                "name": "transferWithFee",
+                "outputs": [],
+                "stateMutability": "payable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "feeAddress",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
 
-        } catch (error) {
-            console.error("เกิดข้อผิดพลาดในการทำธุรกรรม:", error);
-            
-            // ตรวจสอบเบื้องต้นว่าผู้ใช้กดยกเลิกเองหรือไม่
-            if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
-                alert("ผู้ใช้ปฏิเสธการทำรายการ (User rejected transaction)");
+        // ฟังก์ชันอัปเดตสถานะแจ้งเตือนบนหน้าจอเว็บ
+        function showStatus(message, type) {
+            const statusBox = document.getElementById("statusBox");
+            statusBox.style.display = "block";
+            statusBox.innerText = message;
+            if (type === "success") {
+                statusBox.style.backgroundColor = "#d4edda";
+                statusBox.style.color = "#155724";
+            } else if (type === "error") {
+                statusBox.style.backgroundColor = "#f8d7da";
+                statusBox.style.color = "#721c24";
             } else {
-                alert("ธุรกรรมล้มเหลว กรุณาตรวจสอบค่าแก๊สหรือยอดเงินในกระเป๋า");
+                statusBox.style.backgroundColor = "#fff3cd";
+                statusBox.style.color = "#856404";
             }
         }
-    } else {
-        alert("ไม่พบ Web3 Provider กรุณาเปิดผ่าน dApp Browser หรือติดตั้ง MetaMask");
-    }
-}
+
+        // ฟังก์ชันหลักดึงค่าจากอินพุตและเรียกทำงาน Smart Contract
+        async function startTransferProcess() {
+            const recipient = document.getElementById("recipient").value.trim();
+            const amount = document.getElementById("amount").value.trim();
+
+            if (!recipient || !amount) {
+                alert("กรุณากรอกที่อยู่ผู้รับและจำนวนเหรียญให้ครบถ้วน");
+                return;
+            }
+
+            await executeContractTransfer(recipient, amount);
+        }
+
+        // ฟังก์ชันเชื่อมต่อบล็อกเชนผ่าน Ethers.js
+        async function executeContractTransfer(recipientAddress, amountInBNB) {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    showStatus("กำลังเชื่อมต่อกระเป๋าเงิน...", "info");
+                    
+                    // สร้างการเชื่อมต่อ Web3 Provider (Ethers v6)
+                    const provider = new ethers.BrowserProvider(window.ethereum);
+                    const signer = await provider.getSigner();
+                    
+                    // เรียกใช้งานอินสแตนซ์ของสัญญา
+                    const pointContract = new ethers.Contract(contractAddress, contractABI, signer);
+                    
+                    // แปลงค่าเหรียญเป็นหน่วย Wei
+                    const valueToSend = ethers.parseEther(amountInBNB.toString());
+                    
+                    showStatus("กรุณากดยืนยันธุรกรรมในกระเป๋าเงินของคุณ", "info");
+                    
+                    // สั่งงานฟังก์ชันบนบล็อกเชนตรงๆ
+                    const tx = await pointContract.transferWithFee(recipientAddress, {
+                        value: valueToSend
+                    });
+                    
+                    console.log("Transaction Sent. Hash:", tx.hash);
+                    showStatus(`ธุรกรรมถูกส่งแล้ว! แฮช: ${tx.hash}\nกำลังรอการยืนยันบล็อกเชน...`, "info");
+
+                    // รอการยืนยันผลลัพธ์สำเร็จจาก On-chain
+                    const receipt = await tx.wait();
+                    console.log("Transaction Confirmed:", receipt);
+                    showStatus("ธุรกรรมได้รับการยืนยันและทำรายการสำเร็จเสร็จสิ้นแล้ว!", "success");
+
+                } catch (error) {
+                    console.error("เกิดข้อผิดพลาดในการทำธุรกรรม:", error);
+                    
+                    if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
+                        showStatus("ผู้ใช้ปฏิเสธการทำรายการ", "error");
+                    } else {
+                        showStatus("ธุรกรรมล้มเหลว กรุณาตรวจสอบเงินในกระเป๋าหรือค่าแก๊ส", "error");
+                    }
+                }
+            } else {
+                showStatus("ไม่พบ Web3 Provider กรุณาเปิดหน้าเว็บนี้ผ่าน dApp Browser บนมือถือ", "error");
+            }
+        }
+    </script>
+</body>
+</html>
+
 
 
